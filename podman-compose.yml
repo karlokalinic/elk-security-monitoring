@@ -1,0 +1,183 @@
+version: "3.8"
+
+# =============================================================================
+# ELK Security Monitoring Stack
+# =============================================================================
+# Koristi Podman Compose za pokretanje:
+#   podman-compose up -d
+#
+# NAPOMENA: Slike se dohvaćaju s docker.elastic.co registra
+# Elastic slike su OCI-kompatibilne i besplatne za korištenje
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # ELASTICSEARCH - Pohrana i pretraživanje
+  # ===========================================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - node.name=elasticsearch
+      - cluster.name=security-cluster
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.authc.api_key.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-ChangeMeNow123!}
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms2g -Xmx2g}"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - elk_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -k -u elastic:${ELASTIC_PASSWORD:-ChangeMeNow123!} https://localhost:9200/_cluster/health | grep -E 'green|yellow' || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================================================
+  # LOGSTASH - Obrada i transformacija logova
+  # ===========================================================================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: logstash
+    environment:
+      - "LS_JAVA_OPTS=${LS_JAVA_OPTS:--Xms1g -Xmx1g}"
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-ChangeMeNow123!}
+    volumes:
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    ports:
+      - "5044:5044" # Beats input
+      - "5000:5000" # TCP input (aplikacije)
+      - "9600:9600" # Logstash API
+    networks:
+      - elk_network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================================================
+  # KIBANA - Vizualizacija i upravljanje
+  # ===========================================================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=https://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:-ChangeMeNow123!}
+      - ELASTICSEARCH_SSL_VERIFICATIONMODE=none
+      - xpack.security.enabled=true
+      - xpack.encryptedSavedObjects.encryptionKey=a]W~B7q4x-3$9Vz!Lm@nK#2pYfRtGhJe
+    volumes:
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    ports:
+      - "5601:5601"
+    networks:
+      - elk_network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================================================
+  # FILEBEAT - Prikupljanje sistemskih logova
+  # ===========================================================================
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    container_name: filebeat
+    user: root
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-ChangeMeNow123!}
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/log:/var/log:ro
+      - filebeat_data:/usr/share/filebeat/data
+    networks:
+      - elk_network
+    depends_on:
+      - logstash
+    restart: unless-stopped
+
+  # ===========================================================================
+  # APP-SECURE - Sigurna demo aplikacija
+  # ===========================================================================
+  app-secure:
+    build:
+      context: ./app-secure
+      dockerfile: Containerfile
+    container_name: app-secure
+    environment:
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_PORT=5000
+    volumes:
+      - app_secure_logs:/var/log/app
+    ports:
+      - "8080:8080"
+    networks:
+      - elk_network
+    depends_on:
+      - logstash
+    restart: unless-stopped
+
+  # ===========================================================================
+  # APP-VULNERABLE - Ranjiva demo aplikacija
+  # ===========================================================================
+  app-vulnerable:
+    build:
+      context: ./app-vulnerable
+      dockerfile: Containerfile
+    container_name: app-vulnerable
+    environment:
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_PORT=5000
+    volumes:
+      - app_vulnerable_logs:/var/log/app
+    ports:
+      - "8081:8081"
+    networks:
+      - elk_network
+    depends_on:
+      - logstash
+    restart: unless-stopped
+
+# =============================================================================
+# MREŽE
+# =============================================================================
+networks:
+  elk_network:
+    driver: bridge
+
+# =============================================================================
+# VOLUMENI ZA PERZISTENTNE PODATKE
+# =============================================================================
+volumes:
+  elasticsearch_data:
+    driver: local
+  filebeat_data:
+    driver: local
+  app_secure_logs:
+    driver: local
+  app_vulnerable_logs:
+    driver: local

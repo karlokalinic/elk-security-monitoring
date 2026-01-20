@@ -1,0 +1,36 @@
+# =============================================================================
+# Elasticsearch Configuration
+# =============================================================================
+# ELK Security Monitoring Stack
+# =============================================================================
+
+# Cluster settings
+cluster.name: "security-cluster"
+node.name: "elasticsearch"
+
+# Network settings
+network.host: 0.0.0.0
+http.port: 9200
+
+# Discovery (single node)
+discovery.type: single-node
+
+# Security settings
+xpack.security.enabled: true
+xpack.security.enrollment.enabled: true
+
+xpack.security.http.ssl:
+  enabled: true
+  keystore.path: certs/http.p12
+
+xpack.security.transport.ssl:
+  enabled: true
+  verification_mode: certificate
+  keystore.path: certs/transport.p12
+  truststore.path: certs/transport.p12
+
+# License
+xpack.license.self_generated.type: basic
+
+# Logging
+logger.level: INFO

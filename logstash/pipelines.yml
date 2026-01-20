@@ -1,0 +1,7 @@
+# =============================================================================
+# Logstash Pipeline Configuration
+# =============================================================================
+
+- pipeline.id: main
+  path.config: "/usr/share/logstash/pipeline/*.conf"
+  pipeline.workers: 2

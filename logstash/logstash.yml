@@ -1,0 +1,22 @@
+# =============================================================================
+# Logstash Configuration
+# =============================================================================
+
+# Node info
+node.name: logstash
+
+# Pipeline settings
+pipeline.workers: 2
+pipeline.batch.size: 125
+pipeline.batch.delay: 50
+
+# HTTP API
+http.host: "0.0.0.0"
+http.port: 9600
+
+# Logging
+log.level: info
+path.logs: /usr/share/logstash/logs
+
+# X-Pack monitoring
+xpack.monitoring.enabled: false

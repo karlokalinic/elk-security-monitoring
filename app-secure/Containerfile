@@ -1,0 +1,32 @@
+# Containerfile za sigurnu demo aplikaciju
+# Bazna slika: Python 3.11 slim
+FROM docker.io/library/python:3.11-slim
+
+# Metapodaci
+LABEL maintainer="Karlo Kalinić <kalini.karlo@gmail.com>"
+LABEL description="Sigurna demo aplikacija s pravilnim zapisivanjem"
+LABEL version="1.0.0"
+
+# Postavi radni direktorij
+WORKDIR /app
+
+# Kopiraj requirements i instaliraj dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Kreiraj direktorij za logove
+RUN mkdir -p /var/log/app
+
+# Kopiraj aplikacijski kod
+COPY app.py .
+
+# Postavi environment varijable
+ENV PYTHONUNBUFFERED=1
+ENV LOGSTASH_HOST=logstash
+ENV LOGSTASH_PORT=5000
+
+# Izloži port
+EXPOSE 8080
+
+# Pokreni aplikaciju
+CMD ["python", "app.py"]

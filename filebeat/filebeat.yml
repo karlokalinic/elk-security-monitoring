@@ -1,0 +1,75 @@
+# =============================================================================
+# Filebeat Configuration
+# =============================================================================
+# Prikupljanje sistemskih logova
+# =============================================================================
+
+# -------------------------------------------------------------------------
+# Filebeat inputs
+# -------------------------------------------------------------------------
+filebeat.inputs:
+  # System logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/syslog
+      - /var/log/messages
+      - /var/log/*.log
+    fields:
+      log_type: system
+    fields_under_root: true
+
+  # Auth logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/auth.log
+      - /var/log/secure
+    fields:
+      log_type: auth
+      security_category: authentication
+    fields_under_root: true
+
+  # Audit logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/audit/audit.log
+    fields:
+      log_type: audit
+      security_category: audit
+    fields_under_root: true
+
+# -------------------------------------------------------------------------
+# Filebeat modules
+# -------------------------------------------------------------------------
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+# -------------------------------------------------------------------------
+# Processors
+# -------------------------------------------------------------------------
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_kubernetes_metadata: ~
+
+# -------------------------------------------------------------------------
+# Output - Logstash
+# -------------------------------------------------------------------------
+output.logstash:
+  hosts: ["logstash:5044"]
+
+# -------------------------------------------------------------------------
+# Logging
+# -------------------------------------------------------------------------
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0640

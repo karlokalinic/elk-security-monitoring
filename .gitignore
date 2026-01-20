@@ -1,0 +1,41 @@
+# Git ignore za ELK Security Monitoring Stack
+
+# Environment datoteke (sadrže lozinke!)
+.env
+*.env.local
+
+# Podman/Docker
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Elasticsearch data (ako se mountaju lokalno)
+elasticsearch/data/
+
+# Logovi aplikacija (ako se mountaju lokalno)
+logs/
+*.log
+
+# Backup datoteke
+*.bak
+*.backup

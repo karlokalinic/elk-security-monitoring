@@ -1,0 +1,27 @@
+# =============================================================================
+# Kibana Configuration
+# =============================================================================
+
+# Server settings
+server.host: "0.0.0.0"
+server.port: 5601
+server.name: "kibana"
+
+# Elasticsearch connection
+elasticsearch.hosts: ["https://elasticsearch:9200"]
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+elasticsearch.ssl.verificationMode: none
+
+# Security
+xpack.security.enabled: true
+xpack.encryptedSavedObjects.encryptionKey: "a]W~B7q4x-3$9Vz!Lm@nK#2pYfRtGhJe"
+
+# Logging
+logging.root.level: info
+
+# Monitoring
+monitoring.ui.enabled: true
+
+# i18n
+i18n.locale: "en"

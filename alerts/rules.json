@@ -1,0 +1,168 @@
+{
+  "rules": [
+    {
+      "name": "Multiple Failed Login Attempts",
+      "description": "Otkriva višestruke neuspjele pokušaje prijave s iste IP adrese",
+      "rule_type_id": ".es-query",
+      "consumer": "alerts",
+      "schedule": {
+        "interval": "1m"
+      },
+      "params": {
+        "index": ["security-events-*"],
+        "timeField": "@timestamp",
+        "esQuery": {
+          "query": {
+            "bool": {
+              "must": [
+                {"term": {"event_type": "auth"}},
+                {"term": {"status": "failed"}}
+              ],
+              "filter": [
+                {"range": {"@timestamp": {"gte": "now-5m"}}}
+              ]
+            }
+          },
+          "aggs": {
+            "by_ip": {
+              "terms": {"field": "source_ip", "min_doc_count": 5}
+            }
+          }
+        },
+        "threshold": [5],
+        "thresholdComparator": ">"
+      },
+      "actions": [
+        {
+          "group": "default",
+          "id": "log-action",
+          "params": {
+            "message": "ALERT: Multiple failed logins detected from IP: {{context.hits}}"
+          }
+        }
+      ],
+      "tags": ["security", "authentication", "brute-force"]
+    },
+    {
+      "name": "Log Injection Attack Detected",
+      "description": "Otkriva pokušaje log injection napada",
+      "rule_type_id": ".es-query",
+      "consumer": "alerts",
+      "schedule": {
+        "interval": "1m"
+      },
+      "params": {
+        "index": ["security-alerts-*"],
+        "timeField": "@timestamp",
+        "esQuery": {
+          "query": {
+            "bool": {
+              "should": [
+                {"term": {"tags": "potential_log_injection"}},
+                {"term": {"security_category": "attack_detected"}}
+              ],
+              "filter": [
+                {"range": {"@timestamp": {"gte": "now-5m"}}}
+              ],
+              "minimum_should_match": 1
+            }
+          }
+        },
+        "threshold": [1],
+        "thresholdComparator": ">="
+      },
+      "actions": [
+        {
+          "group": "default",
+          "id": "log-action",
+          "params": {
+            "message": "CRITICAL: Log injection attack detected! Check security-alerts index for details."
+          }
+        }
+      ],
+      "tags": ["security", "attack", "log-injection", "critical"]
+    },
+    {
+      "name": "Sensitive Access Outside Business Hours",
+      "description": "Pristup osjetljivim resursima izvan radnog vremena (prije 7:00 ili poslije 19:00)",
+      "rule_type_id": ".es-query",
+      "consumer": "alerts",
+      "schedule": {
+        "interval": "5m"
+      },
+      "params": {
+        "index": ["security-events-*"],
+        "timeField": "@timestamp",
+        "esQuery": {
+          "query": {
+            "bool": {
+              "must": [
+                {"term": {"event_type": "access"}},
+                {"term": {"sensitive": true}}
+              ],
+              "filter": [
+                {"range": {"@timestamp": {"gte": "now-5m"}}},
+                {
+                  "script": {
+                    "script": {
+                      "source": "doc['@timestamp'].value.getHour() < 7 || doc['@timestamp'].value.getHour() > 19"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "threshold": [1],
+        "thresholdComparator": ">="
+      },
+      "actions": [
+        {
+          "group": "default",
+          "id": "log-action",
+          "params": {
+            "message": "WARNING: Sensitive resource accessed outside business hours"
+          }
+        }
+      ],
+      "tags": ["security", "access-control", "after-hours"]
+    },
+    {
+      "name": "High Volume of Authentication Events",
+      "description": "Neuobičajeno velik broj autentifikacijskih događaja (potencijalni napad)",
+      "rule_type_id": ".es-query",
+      "consumer": "alerts",
+      "schedule": {
+        "interval": "1m"
+      },
+      "params": {
+        "index": ["security-events-*"],
+        "timeField": "@timestamp",
+        "esQuery": {
+          "query": {
+            "bool": {
+              "must": [
+                {"term": {"security_category": "authentication"}}
+              ],
+              "filter": [
+                {"range": {"@timestamp": {"gte": "now-1m"}}}
+              ]
+            }
+          }
+        },
+        "threshold": [100],
+        "thresholdComparator": ">"
+      },
+      "actions": [
+        {
+          "group": "default",
+          "id": "log-action",
+          "params": {
+            "message": "ALERT: Unusually high volume of authentication events detected. Possible attack in progress."
+          }
+        }
+      ],
+      "tags": ["security", "authentication", "anomaly", "dos"]
+    }
+  ]
+}
